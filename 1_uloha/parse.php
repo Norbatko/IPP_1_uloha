@@ -6,41 +6,96 @@ declare(strict_types=1);
 ini_set('display_errors', 'stderr');
 
 $header = false;
+$arg_num = 1;
+$order = 1;
 
-if ($argc == 2) {
-    if ($argv[1] == "--help") {
-        printf("Hello\n");
-        return 0;
+function check_args($argv, $argc) {
+    if($argc == 2) {
+        if($argv[1] == "--help") {
+            echo "parse.php";
+            exit(0);
+        }
     }
-
 }
 
-echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+function check_param ($given, $correct) {
+    if ($given == $correct) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+
+class Instruction {
+    public $opcode;
+    public $order;
+    public $type;
+    public $arg;
+    public $arg_num;
+
+    public function __construct($opcode, $order, $type, $arg, $arg_num) {
+        $this->opcode = $opcode;
+        $this->order = $order;
+        $this->type = $type;
+        $this->arg = $arg;
+        $this->arg_num = $arg_num;
+    }
+
+    public function instruction_print_start() {
+        echo "\t<instruction order=\"".$this->order."\" opcode=\"".$this->opcode."\">\n";
+    }
+
+    public function arg_print() {
+        if ($this->type != NULL) {
+            echo "\t\t<".$this->arg_num." type=\"".$this->type."\">".$this->arg."</".$this->arg_num.">\n";
+        }
+    }
+
+    public function instruction_print_end() {
+        echo "\t</instruction>\n";
+    }
+}
+
+
+
+// $hello = new Instruction("WRITE", "1", "var", "GF@a", "arg1");
+
+
 
 while ($line = fgets(STDIN)) {
     $split = explode(" ", trim($line, "\n"));
     if ($header == false) {
         if ($split[0] == ".IPPcode23") {
             $header = true;
-            echo("<program language=\"IPPcode23\">");
+            echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+            echo("<program language=\"IPPcode23\">\n");
+        } else {
+            exit(21);
         }
     }
 
     switch(strtoupper($split[0])) {
-        case "MOVE":
-            break;
+        
         case "CREATERFRAME":
-            break;
         case "PUSHFRAME":
-            break;
         case "POPFRAME":
+        case "RETURN":
+        case "BREAK":
+            $instruction = new Instruction($split[0], $order, NULL, NULL, NULL);
+            $instruction->instruction_print_start();
+            $instruction->arg_print();
+            $instruction->instruction_print_end();
+            $order++;
+            break;
+
+        case "MOVE":
             break;
         case "DEFVAR":
             break;
         case "CALL":
             break;
-        case "RETURN":
-            break;
+        
         case "PUSHS":
             break;
         case "POPS":
@@ -91,9 +146,10 @@ while ($line = fgets(STDIN)) {
             break;
         case "DPRINT":
             break;
-        case "BREAK":
-            break;
+        
         default:
     }
 }
+
+echo "</program>"
 ?>
