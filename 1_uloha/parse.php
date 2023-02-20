@@ -9,6 +9,21 @@ $header = false;
 $arg_num = 1;
 $order = 1;
 
+function instruction_set($opcode, $order, $type, $arg, $arg_num) {
+    $instruction = new Instruction($opcode, $order, $type, $arg, $arg_num);
+    $instruction->instruction_print_start();
+    $instruction->arg_print();
+    $instruction->instruction_print_end();
+    global $order;
+    $order++;
+}
+
+function is_type($type) {
+    if($type == "bool@(true|false)") {
+        
+    }
+}
+
 function check_args($argv, $argc) {
     if($argc == 2) {
         if($argv[1] == "--help") {
@@ -47,8 +62,8 @@ class Instruction {
     }
 
     public function arg_print() {
-        if ($this->type != NULL) {
-            echo "\t\t<".$this->arg_num." type=\"".$this->type."\">".$this->arg."</".$this->arg_num.">\n";
+        if ($this->arg != NULL) {
+            echo "\t\t<arg".$this->arg_num." type=\"".$this->type."\">".$this->arg."</arg".$this->arg_num.">\n";
         }
     }
 
@@ -65,6 +80,7 @@ class Instruction {
 
 while ($line = fgets(STDIN)) {
     $split = explode(" ", trim($line, "\n"));
+    $len = count($split);
     if ($header == false) {
         if ($split[0] == ".IPPcode23") {
             $header = true;
@@ -76,77 +92,72 @@ while ($line = fgets(STDIN)) {
     }
 
     switch(strtoupper($split[0])) {
-        
-        case "CREATERFRAME":
+        // without argument
+        case "CREATEFRAME":
         case "PUSHFRAME":
         case "POPFRAME":
         case "RETURN":
         case "BREAK":
-            $instruction = new Instruction($split[0], $order, NULL, NULL, NULL);
-            $instruction->instruction_print_start();
-            $instruction->arg_print();
-            $instruction->instruction_print_end();
-            $order++;
+            instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            break;
+        // 1 argument => var
+        case "DEFVAR":
+        case "POPS":
+            
             break;
 
-        case "MOVE":
-            break;
-        case "DEFVAR":
-            break;
+        // 1 argument => label
         case "CALL":
+        case "LABEL":
+        case "JUMP":
+            if ($len == 1) {
+                instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            } else {
+                instruction_set(strtoupper($split[0]), $order, "label", $split[1], 1);
+            }
+            
+            break;
+
+        // 1 argument => symb    
+        case "PUSHS":
+        case "WRITE":
+        case "EXIT":
+        case "DPRINT":
+            break;
+
+        // 2 arguments => var, symb
+        case "MOVE":
+        case "INT2CHAR":
+        case "STRLEN":
+        case "TYPE":
             break;
         
-        case "PUSHS":
+        // 2 arguments => var, type
+        case "READ":
             break;
-        case "POPS":
-            break;
+        
+        // 3 arguments => var, symb1, symb2
         case "ADD":
-            break;
         case "SUB":
-            break;
         case "MUL":
-            break;
         case "IDIV":
-            break;
         case "LT":  //its the same as EQ => falling through on purpose
         case "GT":  //its the same as EQ => falling through on purpose
         case 'EQ':
-            break;
         case "AND": //its the same as NOT => falling through on purpose
         case "OR":  //its the same as NOT => falling through on purpose
         case "NOT":
-            break;
-        case "INT2CHAR":
-            break;
         case "STRI2INT":
-            break;
-        case "READ":
-            break;
-        case "WRITE":
-            break;
         case "CONCAT":
-            break;
-        case "STRLEN":
-            break;
         case "GETCHAR":
-            break;
         case "SETCHAR":
             break;
-        case "TYPE":
-            break;
-        case "LABEL":
-            break;
-        case "JUMP":
-            break;
+        
+        // 3 arguments => label, symb1, symb2    
         case "JUMPIFEQ":
-            break;
         case "JUMPIFNEQ":
             break;
-        case "EXIT":
-            break;
-        case "DPRINT":
-            break;
-        
+
         default:
     }
 }
