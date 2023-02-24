@@ -1,13 +1,19 @@
 <?php
 #REGEX
     # <var> => [LF|TF|GF]@[a-zA-Z_-$&%*!?][a-zA-Z_-$&%*!?0-9]*
+    # bool => bool@(true|false)$
+    # nil => nil@nil
+    # int => (?:^0$)|(?"^\-{0,1}[1-9]+$)
+    # string => 
 declare(strict_types=1);
+
 
 ini_set('display_errors', 'stderr');
 
 $header = false;
 $arg_num = 1;
 $order = 1;
+
 
 function instruction_set($opcode, $order, $type, $arg, $arg_num) {
     $instruction = new Instruction($opcode, $order, $type, $arg, $arg_num);
