@@ -1,17 +1,16 @@
 <?php
 #REGEX
-    # <var> => [LF|TF|GF]@[a-zA-Z_-$&%*!?][a-zA-Z_-$&%*!?0-9]*
+    # <var> => (LF|TF|GF)@[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$
     # bool => bool@(true|false)$
     # nil => nil@nil
-    # int => (?:^0$)|(?"^\-{0,1}[1-9]+$)
-    # string => 
+    # int => int@((?:0$)|(?:\-{0,1}[1-9][0-9]*$))
+    # string => string@[^]
 declare(strict_types=1);
 
 
 ini_set('display_errors', 'stderr');
 
 $header = false;
-$arg_num = 1;
 $order = 1;
 
 
@@ -24,9 +23,38 @@ function instruction_set($opcode, $order, $type, $arg, $arg_num) {
     $order++;
 }
 
-function is_type($type) {
-    if($type == "bool@(true|false)") {
-        
+function symb_check($type) {
+    if(preg_match('/bool@(true|false)$/m', $type)) {
+        return true;
+    } else if(preg_match('/int@((?:0$)|(?:\-{0,1}[1-9][0-9]*$))/m', $type)) {
+        return true;
+    } else if(preg_match('/nil@nil/m', $type)) {
+        return true;
+    } else if(preg_match('', $type)) {
+        return true;
+    } else {
+        exit(23);
+    }
+}
+
+function symb_separ($type) {
+    return $out = explode("@", $type);
+}
+
+function var_check($type) {
+    // preg_match_all($re, $str, $matches, PREG_SET_ORDER, 0);
+    if(preg_match('/(LF|TF|GF)@[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$/m',$type)) {
+        return true;
+    } else {
+        exit(23);
+    }
+}
+
+function label_check($type) {
+    if(preg_match('/[a-zA-Z]+/m', $type)) {
+        return true;
+    } else {
+        exit(23);
     }
 }
 
@@ -36,6 +64,8 @@ function check_args($argv, $argc) {
             echo "parse.php";
             exit(0);
         }
+    } else {
+        exit(10);
     }
 }
 
@@ -85,43 +115,78 @@ class Instruction {
 
 
 while ($line = fgets(STDIN)) {
+    $line = preg_replace('/\s*#.*/m','',$line); //removing comments from line
     $split = explode(" ", trim($line, "\n"));
     $len = count($split);
-    if ($header == false) {
-        if ($split[0] == ".IPPcode23") {
-            $header = true;
-            echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            echo("<program language=\"IPPcode23\">\n");
-        } else {
-            exit(21);
+    for($i = 0; $i < $len; $i++) {
+        if($split[$i] === '') {
+            unset($split[$i]);
         }
+    }
+    $split = array_values($split);
+    $len = count($split);
+    
+    if($split[0] == '' && $len == 1) { //if there is only comment or empty line
+        continue;
+    }
+
+    if ($header == false) {
+        for($i = 0; $i < $len; $i++) {  //going though the all splits (even '')
+            if ($split[$i] == ".IPPcode23") {
+                $header = true;
+                echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+                echo("<program language=\"IPPcode23\">\n");
+                continue;
+            } else if($split[$i] == '') {
+                continue;
+            } else {
+                exit(21);
+            }
+        }
+        continue;
     }
 
     switch(strtoupper($split[0])) {
+        
         // without argument
         case "CREATEFRAME":
         case "PUSHFRAME":
         case "POPFRAME":
         case "RETURN":
         case "BREAK":
-            instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            if ($len == 1) {
+                instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            } else {
+                exit(23);
+            }
             break;
+        
         // 1 argument => var
         case "DEFVAR":
         case "POPS":
-            
+            if($len == 2) {
+                if(var_check($split[1])) {
+                    instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                }
+            } else {
+                exit(23);
+            }
             break;
 
         // 1 argument => label
         case "CALL":
         case "LABEL":
         case "JUMP":
-            if ($len == 1) {
-                instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            // if ($len == 1) {
+            //     instruction_set(strtoupper($split[0]), $order, NULL, NULL, NULL);
+            // } else 
+            if ($len == 2){
+                if (label_check($split[1])) {
+                    instruction_set(strtoupper($split[0]), $order, "label", $split[1], 1);
+                }
             } else {
-                instruction_set(strtoupper($split[0]), $order, "label", $split[1], 1);
+                exit(23);
             }
-            
             break;
 
         // 1 argument => symb    
@@ -129,6 +194,14 @@ while ($line = fgets(STDIN)) {
         case "WRITE":
         case "EXIT":
         case "DPRINT":
+            if($len == 2) {
+                if(symb_check($split[1])) {
+                    $out = symb_separ($split[1]);
+                    instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 1);
+                }
+            } else {
+                exit(23);
+            }
             break;
 
         // 2 arguments => var, symb
@@ -136,6 +209,17 @@ while ($line = fgets(STDIN)) {
         case "INT2CHAR":
         case "STRLEN":
         case "TYPE":
+            if ($len == 3) {
+                if(var_check($split[1])) {
+                    if (symb_check($split[2])) {
+                        instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                        $out = symb_separ($split[2]);
+                        instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 2);
+                    }
+                }
+            } else {
+                exit(23);
+            }
             break;
         
         // 2 arguments => var, type
@@ -157,6 +241,21 @@ while ($line = fgets(STDIN)) {
         case "CONCAT":
         case "GETCHAR":
         case "SETCHAR":
+            if ($len == 4) {
+                if(var_check($split[1])) {
+                    if (symb_check($split[2])) {
+                        if(symb_check($split[3])) {
+                            instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                            $out = symb_separ($split[2]);
+                            instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 2);
+                            $out = symb_separ($split[3]);
+                            instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 3);
+                        }
+                    }
+                }
+            } else {
+                exit(23);
+            }
             break;
         
         // 3 arguments => label, symb1, symb2    
@@ -165,6 +264,7 @@ while ($line = fgets(STDIN)) {
             break;
 
         default:
+            exit(22);
     }
 }
 
