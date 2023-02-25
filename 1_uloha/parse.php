@@ -126,23 +126,23 @@ while ($line = fgets(STDIN)) {
     $split = array_values($split);
     $len = count($split);
     
-    if($split[0] == '' && $len == 1) { //if there is only comment or empty line
+    if($split == NULL) {    //there was only blank line or comment
         continue;
     }
 
     if ($header == false) {
-        for($i = 0; $i < $len; $i++) {  //going though the all splits (even '')
-            if ($split[$i] == ".IPPcode23") {
+        // for($i = 0; $i < $len; $i++) {  //going though the all splits (even '')
+            if ($split[0] == ".IPPcode23") {
                 $header = true;
                 echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
                 echo("<program language=\"IPPcode23\">\n");
                 continue;
-            } else if($split[$i] == '') {
-                continue;
+            // } else if($split[$i] == '') {
+            //     continue;
             } else {
                 exit(21);
             }
-        }
+        // }
         continue;
     }
 
