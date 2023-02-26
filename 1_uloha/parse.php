@@ -15,8 +15,8 @@ $header = false;
 $order = 1;
 
 
-function instruction_set($opcode, $order, $type, $arg, $arg_num) {
-    $instruction = new Instruction($opcode, $order, $type, $arg, $arg_num);
+function instruction_set($opcode, $order, $type, $arg_num, ...$args) {
+    $instruction = new Instruction($opcode, $order, $type, $arg_num, ...$args);
     $instruction->instruction_print_start();
     $instruction->arg_print();
     $instruction->instruction_print_end();
@@ -113,12 +113,9 @@ class Instruction {
         $this->order = $order;
         $this->type = $type;
         $this->arg_num = $arg_num;
-        $i = 0;
-        foreach($args as $tmp) {
-            echo $tmp."\n\n\n";
-            $this->args = array($i => $tmp);
-            echo $this->args[$i]."\n\n";
-            $i++;
+        $this->args = array();
+        foreach($args as $i) {
+            $this->args[] = $i;
         }
     }
 
@@ -127,8 +124,10 @@ class Instruction {
     }
 
     public function arg_print() {
-        if ($this->arg != NULL) {
-            echo "\t\t<arg".$this->arg_num." type=\"".$this->type."\">".$this->arg."</arg".$this->arg_num.">\n";
+        for($i = 0; $i < $this->arg_num; $i++) {
+            if ($this->args[$i] != NULL) {
+                echo "\t\t<arg".($i+1)." type=\"".$this->type."\">".$this->args[$i]."</arg".($i+1).">\n";
+            }
         }
     }
 
@@ -252,8 +251,8 @@ while ($line = fgets(STDIN)) {
                         instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 2);
                     } else if (type_check($split[2]) == "var") {
                         $split[2] = var_split($split[2]);
-                        instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
-                        instruction_set(strtoupper($split[0]), $order, "var", $split[2], 2);
+                        instruction_set(strtoupper($split[0]), $order, "var", 2, $split[1], $split[2]);
+                        //instruction_set(strtoupper($split[0]), $order, "var", $split[2], 2);
                     }
                 }
             } else {
