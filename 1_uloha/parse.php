@@ -74,7 +74,7 @@ function var_split($type) {
 
 function label_check($type) {
     
-    if(preg_match('/^[a-zA-Z]+$/m', $type)) {
+    if(preg_match('/^[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$/m', $type)) {
         return true;
     } else {
         exit(23);
@@ -126,6 +126,7 @@ class Instruction {
     public function arg_print() {
         for($i = 0; $i < $this->arg_num; $i++) {
             if ($this->args[$i] != NULL) {
+                
                 echo "\t\t<arg".($i+1)." type=\"".$this->type."\">".$this->args[$i]."</arg".($i+1).">\n";
             }
         }
@@ -195,7 +196,7 @@ while ($line = fgets(STDIN)) {
             if($len == 2) {
                 if(type_check($split[1]) == "var") {
                     $split[1] = var_split($split[1]);
-                    instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                    instruction_set(strtoupper($split[0]), $order, "var", 1, $split[1]);
                 } else {
                     exit(23);
                 }
@@ -213,7 +214,7 @@ while ($line = fgets(STDIN)) {
             // } else 
             if ($len == 2){
                 if (label_check($split[1])) {
-                    instruction_set(strtoupper($split[0]), $order, "label", $split[1], 1);
+                    instruction_set(strtoupper($split[0]), $order, "label", 1, $split[1]);
                 }
             } else {
                 exit(23);
@@ -228,9 +229,9 @@ while ($line = fgets(STDIN)) {
             if($len == 2) {
                 if(type_check($split[1]) == "symb") {
                     $out = symb_separ($split[1]);
-                    instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 1);
+                    instruction_set(strtoupper($split[0]), $order, $out[0], 1, $out[1]);
                 } else if (type_check($split[1]) == "var") {
-                    instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                    instruction_set(strtoupper($split[0]), $order, "var", 1, $split[1]);
                 }
             } else {
                 exit(23);
@@ -246,9 +247,9 @@ while ($line = fgets(STDIN)) {
                 if(type_check($split[1]) == "var") {
                     $split[1] = var_split($split[1]);
                     if (type_check($split[2]) == "symb") {
-                        instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                        instruction_set(strtoupper($split[0]), $order, "var", 1, $split[1]);
                         $out = symb_separ($split[2]);
-                        instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 2);
+                        instruction_set(strtoupper($split[0]), $order, $out[0], 2, $out[1]);
                     } else if (type_check($split[2]) == "var") {
                         $split[2] = var_split($split[2]);
                         instruction_set(strtoupper($split[0]), $order, "var", 2, $split[1], $split[2]);
@@ -284,11 +285,11 @@ while ($line = fgets(STDIN)) {
                     $split[1] = var_split($split[1]);
                     if (type_check($split[2]) == "symb") {
                         if(type_check($split[3]) == "symb") {
-                            instruction_set(strtoupper($split[0]), $order, "var", $split[1], 1);
+                            instruction_set(strtoupper($split[0]), $order, "var", 3, $split[1]);
                             $out = symb_separ($split[2]);
-                            instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 2);
+                            instruction_set(strtoupper($split[0]), $order, $out[0], 2, $out[1]);
                             $out = symb_separ($split[3]);
-                            instruction_set(strtoupper($split[0]), $order, $out[0], $out[1], 3);
+                            instruction_set(strtoupper($split[0]), $order, $out[0], 3, $out[1]);
                         }
                     }
                 }
