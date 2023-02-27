@@ -142,7 +142,6 @@ class Instruction {
                 } else if (type_check($this->args[$i]) == "type") {
                     echo "\t\t<arg".($i+1)." type=\"type\">".$this->args[$i]."</arg".($i+1).">\n";
                 }
-                //echo "\t\t<arg".($i+1)." type=\"".$this->type."\">".$this->args[$i]."</arg".($i+1).">\n";
             }
         }
     }
