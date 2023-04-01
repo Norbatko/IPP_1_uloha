@@ -1,1 +1,2 @@
-# IPP_1_uloha
+# IPP projekt
+Parser a interpret
