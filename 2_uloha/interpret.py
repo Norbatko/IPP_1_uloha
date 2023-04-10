@@ -22,16 +22,25 @@ class Local_frame:
         else:
             return self.local_frame.popitem()
 
+    def get_item(self, var):
+        if self.local_frame is None or self.local_frame == {}:
+            sys.stderr.write("ERROR: Empty local frame.\n")
+            exit(55)
+        else:
+            return self.local_frame[var]
+
+    def get_frame(self):
+        return self.local_frame
+
+
 class Instruction:
     instructions_list = []
 
-    def __init__(self, opcode, order, num_args):
+    def __init__(self, opcode, order):
         self.opcode = opcode
         self.order = order
-        self.num_args = num_args
         self.args = []
         self.instructions_list.append(self)
-        self.instructions_list.sort(key=lambda x: x.get_order())
 
     # Prida novy argument k instrukci a zaroven je seradi
     def add_arguments(self, num, arg_type, value):
@@ -44,14 +53,14 @@ class Instruction:
     def get_order(self):
         return self.order
 
-    def check_num_args(self):
-        if not(len(self.args) == self.num_args):
+    def check_num_args(self, num_args):
+        if not(len(self.args) == num_args):
             sys.stderr.write("ERROR: Bad number of arguments.\n")
             exit(32)
 
-    def check_valid_num_args(self):
+    def check_valid_num_args(self, num_args):
         arguments = ["arg1", "arg2", "arg3"]
-        for i in range(0, self.num_args):
+        for i in range(0, num_args):
             if not(self.args[i].get_num() == arguments[i]):
                 sys.stderr.write("ERROR: Bad number order of arguments.\n")
                 exit(32)
@@ -62,6 +71,8 @@ class Instruction:
     def get_args(self):
         return self.args
 
+    def get_len(self):
+        return len(self.instructions_list)
 
 class Argument:
     def __init__(self, num, arg_type, value):
@@ -172,38 +183,42 @@ def args_check():
 
 #################################################################
 # Kontrola typu argumentu
-def type_check(obj):
-    args = obj.get_args()
-    for i in args:
+def type_check(obj, *args):
+    arguments = obj.get_args()
+    for i in arguments:
         for j in i.get_arg_type():
-            if (re.match(r"int", j)):
-                if not((re.match(r"^((?:(\+|\-){0,1}0$)|(?:(\+|\-){0,1}[1-9][0-9]*$))$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"label", j)):
-                if not((re.match(r"^[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"var", j)):
-                if not((re.match(r"^(LF|TF|GF)@[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"bool", j)):
-                if not((re.match(r"^(true|false)$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"nil", j)):
-                if not((re.match(r"^nil$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"type", j)):
-                if not((re.match(r"^(int|string|bool)$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
-            elif (re.match(r"string", j)):
-                if not((re.match(r"^([^\\\s#]|\\\d{3})*$", i.get_value()))):
-                    sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
-                    exit(32)
+            if any(j in x for x in args):
+                if (re.match(r"int", j)):
+                    if not((re.match(r"^((?:(\+|\-){0,1}0$)|(?:(\+|\-){0,1}[1-9][0-9]*$))$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"label", j)):
+                    if not((re.match(r"^[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"var", j)):
+                    if not((re.match(r"^(LF|TF|GF)@[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"bool", j)):
+                    if not((re.match(r"^(true|false)$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"nil", j)):
+                    if not((re.match(r"^nil$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"type", j)):
+                    if not((re.match(r"^(int|string|bool)$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+                elif (re.match(r"string", j)):
+                    if not((re.match(r"^([^\\\s#]|\\\d{3})*$", i.get_value()))):
+                        sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
+                        exit(32)
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument in instruction " + obj.get_opcode() + ".\n")
+                exit(55)
 
 
 #################################################################
@@ -277,64 +292,90 @@ def add_arg(child, obj):
 
 #################################################################
 # Zjisteni o jaky ramec se jedna
-def move_to_frame(frame, global_frame, local_frame, temp_frame):
-    # Ziskani promenne
-    split_string = frame.split("@")
-    var1 = split_string[-1]
-
-    # Ziskani promenne
-    split_string = frame.split("@")
-    var2 = split_string[-1]
-
-
-
-    if(re.match(r"^TF@", frame)):
-        #if var1 in temp_frame:
-        temp_frame[var1] = 5
-        #else:
-         #   sys.stderr.write("ERROR: Variable doesn't exists.\n")
-          #  exit(54)
-    if (re.match(r"^LF@", frame)):
-        local_frame[var1] = 5
-    if (re.match(r"^GF@", frame)):
-        global_frame[var1] = 5
+def move_to_frame(frame_to, frame_from, global_frame, local_frame, temp_frame):
+    # Pokud kopirujeme z jineho ramce
+    if re.match(r"^(TF|LF|GF)@", frame_from[:3]):
+        # Kopirujeme z docasneho ramce -> existuje jen jeden, takze nemuzeme kopirovat do nej
+        if re.match(r"^TF@", frame_from[:3]):
+            if re.match(r"^LF@", frame_to[:3]):
+                local_frame.push_LF(frame_to[3:], temp_frame[frame_from[3:]])
+            if re.match(r"^GF@", frame_to[:3]):
+                global_frame[frame_to[3:]] = temp_frame[frame_from[3:]]
+            else:
+                return None
+        # Kopirujeme z lokalniho ramce
+        if re.match(r"^LF@", frame_from[:3]):
+            if re.match(r"^TF@", frame_to[:3]):
+                temp_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
+            if re.match(r"^LF@", frame_to[:3]):
+                local_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
+            if re.match(r"^GF@", frame_to[:3]):
+                global_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
+            else:
+                return None
+        # Kopirujeme z globalniho ramce
+        if re.match(r"^GF@", frame_from[:3]):
+            if re.match(r"^TF@", frame_to[:3]):
+                temp_frame[frame_to[3:]] = global_frame[frame_from[3:]]
+            if re.match(r"^LF@", frame_to[:3]):
+                local_frame[frame_to[3:]] = global_frame[frame_from[3:]]
+            if re.match(r"^GF@", frame_to[:3]):
+                global_frame[frame_to[3:]] = global_frame[frame_from[3:]]
+            else:
+                return None
+    # Pokud kopirujeme jen hodnotu
     else:
-        return None
+        if re.match(r"^TF@", frame_to[:3]):
+            #if var1 in temp_frame:
+            temp_frame[frame_to[3:]] = frame_from
+            #else:
+             #   sys.stderr.write("ERROR: Variable doesn't exists.\n")
+              #  exit(54)
+        if re.match(r"^LF@", frame_to[:3]):
+            local_frame.push_LF(frame_to[3:], frame_from)
+            #local_frame[frame_to[3:]] = frame_from
+        if re.match(r"^GF@", frame_to[:3]):
+            global_frame[frame_to[3:]] = frame_from
+        else:
+            return None
 #################################################################
 
 #################################################################
 # Definovani promenne v ramci
-def def_frame(frame , global_frame, local_frame, temp_frame):
-    # Ziskani promenne
-    split_string = frame.split("@")
-    var = split_string[-1]
-
-    if(re.match(r"^TF@", frame)):
-        if temp_frame is None:
-            print("AH")
-            if var in temp_frame:
+def def_frame(frame, global_frame, local_frame, temp_frame):
+    if re.match(r"^TF@", frame[:3]):
+        if temp_frame is not None:
+            if frame[3:] in temp_frame:
                 sys.stderr.write("ERROR: Variable is already defined.\n")
                 exit(54)
             else:
-                temp_frame[var] = None
-    if (re.match(r"^LF@", frame)):
-        if var in local_frame:
-            sys.stderr.write("ERROR: Variable is already defined.\n")
-            exit(54)
+                temp_frame[frame[3:]] = None
         else:
-            local_frame[var] = None
-    if (re.match(r"^GF@", frame)):
-        if var in global_frame:
-            sys.stderr.write("ERROR: Variable is already defined.\n")
-            exit(54)
-        else:
-            global_frame[var] = None
+            sys.stderr.write("ERROR: Frame doesn't exists.\n")
+            exit(55)
 
+    if re.match(r"^LF@", frame[:3]):
+        if local_frame is not None:
+            if local_frame[frame[3:]]:
+                sys.stderr.write("ERROR: Variable is already defined.\n")
+                exit(54)
+            else:
+                local_frame[frame[3:]] = None
+        else:
+            sys.stderr.write("ERROR: Frame doesn't exists.\n")
+            exit(55)
+    if re.match(r"^GF@", frame[:3]):
+        if frame[3:] in global_frame:
+            sys.stderr.write("ERROR: Variable is already defined.\n")
+            exit(54)
+        else:
+            global_frame[frame[3:]] = None
 #################################################################
 
 #################################################################
 # Nacteni z XML souboru, kdy se nejdriv i zavola funkce pro kontrolu
 def tree_load(global_frame, local_frame, temp_frame):
+    instruction_list = []
     try:
         ET.parse(source_file)
     except:
@@ -344,29 +385,30 @@ def tree_load(global_frame, local_frame, temp_frame):
     tree = ET.parse(source_file)
     root = tree.getroot()
     tree_check(root)
+    i = 0
     for child in root:
         instruct_keys = list(child.attrib.values())
+        instruction_list.append(Instruction(instruct_keys[1].upper(), instruct_keys[0]))
+        add_arg(child, instruction_list[i])
+        i += 1
+        instruction_list.sort(key=lambda x: int(x.get_order()))
+
+    for instruction in instruction_list:
         # Prvni pozice je order, na druhe je opcode
-        if 'MOVE' in instruct_keys[1].upper():
-            instr_move = Instruction("MOVE", instruct_keys[0], 2)
-            add_arg(child, instr_move)
-            instr_move.check_num_args()
-            type_check(instr_move)
-            move_to_frame(instr_move.get_args()[0].get_value(), global_frame, local_frame, temp_frame)
+        if 'MOVE' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction, "var", ["int", "string", "bool", "nil"])
+            move_to_frame(instruction.get_args()[0].get_value(), instruction.get_args()[1].get_value(), global_frame, local_frame, temp_frame)
             continue
 
-        if 'CREATEFRAME' in instruct_keys[1].upper():
-            instr_createframe = Instruction("CREATEFRAME", instruct_keys[0], 0)
-            add_arg(child, instr_createframe)
-            instr_createframe.check_num_args()
+        if 'CREATEFRAME' == instruction.get_opcode():
+            instruction.check_num_args(0)
             # Vytvori prazdny docasny ramec
             temp_frame = {}
             continue
 
-        if 'PUSHFRAME' in instruct_keys[1].upper():
-            instr_pushframe = Instruction("PUSHFRAME", instruct_keys[0], 0)
-            add_arg(child, instr_pushframe)
-            instr_pushframe.check_num_args()
+        if 'PUSHFRAME' == instruction.get_opcode():
+            instruction.check_num_args(0)
             # Vytvori prazdny docasny ramec
             if temp_frame is None:
                 sys.stderr.write("ERROR: Undefined temporary frame.\n")
@@ -377,233 +419,167 @@ def tree_load(global_frame, local_frame, temp_frame):
                 temp_frame = None
             continue
 
-        if 'POPFRAME' in instruct_keys[1].upper():
-            instr_popframe = Instruction("POPFRAME", instruct_keys[0], 0)
-            add_arg(child, instr_popframe)
-            instr_popframe.check_num_args()
+        if 'POPFRAME' == instruction.get_opcode():
+            instruction.check_num_args(0)
             # Pri pop mi vznikne list
             temp = list(local_frame.pop_LF())
-            # Pomoci funkce zip udelam z listu zpatky dictionary
+            # Priradim do temporary frame
             temp_frame[temp[0]] = temp[1]
             continue
 
-        if 'DEFVAR' in instruct_keys[1].upper():
-            instr_defvar = Instruction("DEFVAR", instruct_keys[0], 1)
-            add_arg(child, instr_defvar)
-            instr_defvar.check_num_args()
-            type_check(instr_defvar)
-            def_frame(instr_defvar.get_args()[0].get_value() , global_frame, local_frame, temp_frame)
+        if 'DEFVAR' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction, "var")
+            def_frame(instruction.get_args()[0].get_value(), global_frame, local_frame, temp_frame)
             continue
 
-        if 'CALL' in instruct_keys[1].upper():
-            instr_call = Instruction("CALL", instruct_keys[0], 1)
-            add_arg(child, instr_call)
-            instr_call.check_num_args()
-            type_check(instr_call)
+        if 'CALL' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'RETURN' in instruct_keys[1].upper():
-            instr_return = Instruction("RETURN", instruct_keys[0], 0)
-            add_arg(child, instr_return)
-            instr_return.check_num_args()
-            type_check(instr_return)
+        if 'RETURN' == instruction.get_opcode():
+            instruction.check_num_args(0)
+            type_check(instruction)
             continue
 
-        if 'PUSHS' in instruct_keys[1].upper():
-            instr_pushs = Instruction("PUSHS", instruct_keys[0], 1)
-            add_arg(child, instr_pushs)
-            instr_pushs.check_num_args()
-            type_check(instr_pushs)
+        if 'PUSHS' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'POPS' in instruct_keys[1].upper():
-            instr_pops = Instruction("POPS", instruct_keys[0], 1)
-            add_arg(child, instr_pops)
-            instr_pops.check_num_args()
-            type_check(instr_pops)
+        if 'POPS' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'ADD' in instruct_keys[1].upper():
-            instr_add = Instruction("ADD", instruct_keys[0], 3)
-            add_arg(child, instr_add)
-            instr_add.check_num_args()
-            type_check(instr_add)
+        if 'ADD' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'SUB' in instruct_keys[1].upper():
-            instr_sub = Instruction("SUB", instruct_keys[0], 3)
-            add_arg(child, instr_sub)
-            instr_sub.check_num_args()
-            type_check(instr_sub)
+        if 'SUB' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'MUL' in instruct_keys[1].upper():
-            instr_mul = Instruction("MUL", instruct_keys[0], 3)
-            add_arg(child, instr_mul)
-            instr_mul.check_num_args()
-            type_check(instr_mul)
+        if 'MUL' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'IDIV' in instruct_keys[1].upper():
-            instr_idiv = Instruction("IDIV", instruct_keys[0], 3)
-            add_arg(child, instr_idiv)
-            instr_idiv.check_num_args()
-            type_check(instr_idiv)
+        if 'IDIV' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'LT' in instruct_keys[1].upper():
-            instr_lt = Instruction("LT", instruct_keys[0], 3)
-            add_arg(child, instr_lt)
-            instr_lt.check_num_args()
-            type_check(instr_lt)
+        if 'LT' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'GT' in instruct_keys[1].upper():
-            instr_gt = Instruction("GT", instruct_keys[0], 3)
-            add_arg(child, instr_gt)
-            instr_gt.check_num_args()
-            type_check(instr_gt)
+        if 'GT' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'AND' in instruct_keys[1].upper():
-            instr_and = Instruction("AND", instruct_keys[0], 3)
-            add_arg(child, instr_and)
-            instr_and.check_num_args()
-            type_check(instr_and)
+        if 'AND' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'OR' in instruct_keys[1].upper():
-            instr_or = Instruction("OR", instruct_keys[0], 3)
-            add_arg(child, instr_or)
-            instr_or.check_num_args()
-            type_check(instr_or)
+        if 'OR' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'NOT' in instruct_keys[1].upper():
-            instr_not = Instruction("NOT", instruct_keys[0], 2)
-            add_arg(child, instr_not)
-            instr_not.check_num_args()
-            type_check(instr_not)
+        if 'NOT' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction)
             continue
 
-        if 'INT2CHAR' in instruct_keys[1].upper():
-            instr_int2char = Instruction("INT2CHAR", instruct_keys[0], 2)
-            add_arg(child, instr_int2char)
-            instr_int2char.check_num_args()
-            type_check(instr_int2char)
+        if 'INT2CHAR' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction)
             continue
 
-        if 'STRI2INT' in instruct_keys[1].upper():
-            instr_stri2int = Instruction("STRI2INT", instruct_keys[0], 3)
-            add_arg(child, instr_stri2int)
-            instr_stri2int.check_num_args()
-            type_check(instr_stri2int)
+        if 'STRI2INT' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'READ' in instruct_keys[1].upper():
-            instr_read = Instruction("READ", instruct_keys[0], 2)
-            add_arg(child, instr_read)
-            instr_read.check_num_args()
-            type_check(instr_read)
+        if 'READ' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction)
             continue
 
-        if 'WRITE' in instruct_keys[1].upper():
-            instr_write = Instruction("WRITE", instruct_keys[0], 1)
-            add_arg(child, instr_write)
-            instr_write.check_num_args()
-            type_check(instr_write)
-            instr_write.check_valid_num_args()
+        if 'WRITE' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'CONCAT' in instruct_keys[1].upper():
-            instr_concat = Instruction("CONCAT", instruct_keys[0], 3)
-            add_arg(child, instr_concat)
-            instr_concat.check_num_args()
-            type_check(instr_concat)
+        if 'CONCAT' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'STRLEN' in instruct_keys[1].upper():
-            instr_strlen = Instruction("STRLEN", instruct_keys[0], 2)
-            add_arg(child, instr_strlen)
-            instr_strlen.check_num_args()
-            type_check(instr_strlen)
+        if 'STRLEN' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction)
             continue
 
-        if 'GETCHAR' in instruct_keys[1].upper():
-            instr_getchar = Instruction("GETCHAR", instruct_keys[0], 3)
-            add_arg(child, instr_getchar)
-            instr_getchar.check_num_args()
-            type_check(instr_getchar)
+        if 'GETCHAR' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'SETCHAR' in instruct_keys[1].upper():
-            instr_setchar = Instruction("SETCHAR", instruct_keys[0], 3)
-            add_arg(child, instr_setchar)
-            instr_setchar.check_num_args()
-            type_check(instr_setchar)
+        if 'SETCHAR' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'TYPE' in instruct_keys[1].upper():
-            instr_type = Instruction("TYPE", instruct_keys[0], 2)
-            add_arg(child, instr_type)
-            instr_type.check_num_args()
-            type_check(instr_type)
+        if 'TYPE' == instruction.get_opcode():
+            instruction.check_num_args(2)
+            type_check(instruction)
             continue
 
-        if 'LABEL' in instruct_keys[1].upper():
-            instr_label = Instruction("LABEL", instruct_keys[0], 1)
-            add_arg(child, instr_label)
-            instr_label.check_num_args()
-            type_check(instr_label)
+        if 'LABEL' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'JUMPIFNEQ' in instruct_keys[1].upper():
-            instr_jumpifneq = Instruction("JUMPIFNEQ", instruct_keys[0], 3)
-            add_arg(child, instr_jumpifneq)
-            instr_jumpifneq.check_num_args()
-            type_check(instr_jumpifneq)
+        if 'JUMPIFNEQ' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'JUMPIFEQ' in instruct_keys[1].upper():
-            instr_jumpifeq = Instruction("JUMPIFEQ", instruct_keys[0], 3)
-            add_arg(child, instr_jumpifeq)
-            instr_jumpifeq.check_num_args()
-            type_check(instr_jumpifeq)
+        if 'JUMPIFEQ' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'EQ' in instruct_keys[1].upper():
-            instr_eq = Instruction("EQ", instruct_keys[0], 3)
-            add_arg(child, instr_eq)
-            instr_eq.check_num_args()
-            type_check(instr_eq)
+        if 'EQ' == instruction.get_opcode():
+            instruction.check_num_args(3)
+            type_check(instruction)
             continue
 
-        if 'JUMP' in instruct_keys[1].upper():
-            instr_jump = Instruction("JUMP", instruct_keys[0], 1)
-            add_arg(child, instr_jump)
-            instr_jump.check_num_args()
-            type_check(instr_jump)
+        if 'JUMP' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'EXIT' in instruct_keys[1].upper():
-            instr_exit = Instruction("EXIT", instruct_keys[0], 1)
-            add_arg(child, instr_exit)
-            instr_exit.check_num_args()
-            type_check(instr_exit)
+        if 'EXIT' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'DPRINT' in instruct_keys[1].upper():
-            instr_dprint = Instruction("DPRINT", instruct_keys[0], 1)
-            add_arg(child, instr_dprint)
-            instr_dprint.check_num_args()
-            type_check(instr_dprint)
+        if 'DPRINT' == instruction.get_opcode():
+            instruction.check_num_args(1)
+            type_check(instruction)
             continue
 
-        if 'BREAK' in instruct_keys[1].upper():
-            instr_break = Instruction("BREAK", instruct_keys[0], 0)
-            add_arg(child, instr_break)
-            instr_break.check_num_args()
-            type_check(instr_break)
+        if 'BREAK' == instruction.get_opcode():
+            instruction.check_num_args(0)
             continue
 
         else:
