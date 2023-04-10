@@ -185,40 +185,43 @@ def args_check():
 # Kontrola typu argumentu
 def type_check(obj, *args):
     arguments = obj.get_args()
+    cnt = 0
     for i in arguments:
-        for j in i.get_arg_type():
-            if any(j in x for x in args):
-                if (re.match(r"int", j)):
+        for type in i.get_arg_type():
+            print(type)
+            if type in args[cnt]:
+                if (re.match(r"int", type)):
                     if not((re.match(r"^((?:(\+|\-){0,1}0$)|(?:(\+|\-){0,1}[1-9][0-9]*$))$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"label", j)):
+                elif (re.match(r"label", type)):
                     if not((re.match(r"^[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"var", j)):
+                elif (re.match(r"var", type)):
                     if not((re.match(r"^(LF|TF|GF)@[a-zA-Z_\-$&%*!?][a-zA-Z_\-$&%*!?0-9]*$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"bool", j)):
+                elif (re.match(r"bool", type)):
                     if not((re.match(r"^(true|false)$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"nil", j)):
+                elif (re.match(r"nil", type)):
                     if not((re.match(r"^nil$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"type", j)):
+                elif (re.match(r"type", type)):
                     if not((re.match(r"^(int|string|bool)$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
-                elif (re.match(r"string", j)):
+                elif (re.match(r"string", type)):
                     if not((re.match(r"^([^\\\s#]|\\\d{3})*$", i.get_value()))):
                         sys.stderr.write("ERROR: Type of value doesn't match the expected type.\n")
                         exit(32)
+                cnt += 1
             else:
                 sys.stderr.write("ERROR: Invalid type of argument in instruction " + obj.get_opcode() + ".\n")
-                exit(55)
+                exit(53)
 
 
 #################################################################
@@ -347,7 +350,7 @@ def def_frame(frame, global_frame, local_frame, temp_frame):
         if temp_frame is not None:
             if frame[3:] in temp_frame:
                 sys.stderr.write("ERROR: Variable is already defined.\n")
-                exit(54)
+                exit(52)
             else:
                 temp_frame[frame[3:]] = None
         else:
@@ -358,7 +361,7 @@ def def_frame(frame, global_frame, local_frame, temp_frame):
         if local_frame is not None:
             if local_frame[frame[3:]]:
                 sys.stderr.write("ERROR: Variable is already defined.\n")
-                exit(54)
+                exit(52)
             else:
                 local_frame[frame[3:]] = None
         else:
@@ -367,7 +370,7 @@ def def_frame(frame, global_frame, local_frame, temp_frame):
     if re.match(r"^GF@", frame[:3]):
         if frame[3:] in global_frame:
             sys.stderr.write("ERROR: Variable is already defined.\n")
-            exit(54)
+            exit(52)
         else:
             global_frame[frame[3:]] = None
 #################################################################
@@ -397,7 +400,7 @@ def tree_load(global_frame, local_frame, temp_frame):
         # Prvni pozice je order, na druhe je opcode
         if 'MOVE' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction, "var", ["int", "string", "bool", "nil"])
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             move_to_frame(instruction.get_args()[0].get_value(), instruction.get_args()[1].get_value(), global_frame, local_frame, temp_frame)
             continue
 
@@ -435,7 +438,7 @@ def tree_load(global_frame, local_frame, temp_frame):
 
         if 'CALL' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, "label")
             continue
 
         if 'RETURN' == instruction.get_opcode():
@@ -445,137 +448,137 @@ def tree_load(global_frame, local_frame, temp_frame):
 
         if 'PUSHS' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'POPS' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, "var")
             continue
 
         if 'ADD' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'SUB' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'MUL' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'IDIV' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'LT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'GT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'AND' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'OR' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'NOT' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'INT2CHAR' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'STRI2INT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'READ' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool"])
             continue
 
         if 'WRITE' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'CONCAT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'STRLEN' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'GETCHAR' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'SETCHAR' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'TYPE' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'LABEL' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, "label")
             continue
 
         if 'JUMPIFNEQ' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "label", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'JUMPIFEQ' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "label", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'EQ' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction)
+            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'JUMP' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, "label")
             continue
 
         if 'EXIT' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'DPRINT' == instruction.get_opcode():
             instruction.check_num_args(1)
-            type_check(instruction)
+            type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'BREAK' == instruction.get_opcode():
