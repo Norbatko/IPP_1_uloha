@@ -8,34 +8,65 @@ import os
 
 class Local_frame:
     def __init__(self):
-        self.local_frame = None
+        self.local_frame = []
 
-    def push_LF(self, var, value):
-        if self.local_frame is None:
-            self.local_frame = {}
-        self.local_frame[var] = value
-
-    def pop_LF(self):
-        if self.local_frame is None or self.local_frame == {}:
-            sys.stderr.write("ERROR: Empty local frame.\n")
-            exit(55)
-        else:
-            return self.local_frame.popitem()
-
-    def get_item(self, var):
-        if self.local_frame is None or self.local_frame == {}:
-            sys.stderr.write("ERROR: Empty local frame.\n")
-            exit(55)
-        else:
-            return self.local_frame[var]
-
-    def get_frame(self):
+    def get_LF(self):
         return self.local_frame
 
+    def create_LF_dict(self):
+        self.local_frame.append({})
+
+    def push_new_LF(self, var, type, value):
+        self.local_frame[-1][var] = type, value
+
+    def def_LF(self, var):
+        try:
+            self.local_frame[-1][var]
+        except:
+            self.local_frame[-1][var] = None, None
+            return
+        sys.stderr.write("ERROR: Variable is already defined.\n")
+        exit(52)
+
+    def push_LF(self, var, type, value):
+        try:
+            self.local_frame[-1][var]
+        except:
+            sys.stderr.write("ERROR: Variable doesn't exists.\n")
+            exit(54)
+
+        if self.local_frame[-1][var] is None:
+            self.local_frame[-1][var] = type, value
+        else:
+            sys.stderr.write("ERROR: Variable already exists.\n")
+            exit(52)
+
+    def copy_LF(self, var, type, value):
+        self.local_frame[-1][var] = type, value
+
+    def pop_LF(self):
+        try:
+            return self.local_frame.pop()
+        except:
+            sys.stderr.write("ERROR: Empty local frame.\n")
+            exit(55)
+
+    def get_item(self, var):
+        try:
+            return self.local_frame[-1][var][1]
+        except:
+            sys.stderr.write("ERROR: Empty local frame.\n")
+            exit(55)
+
+    def get_type(self, var):
+        try:
+            return self.local_frame[-1][var][0]
+        except:
+            sys.stderr.write("ERROR: Empty local frame.\n")
+            exit(55)
 
 class Instruction:
     instructions_list = []
-
     def __init__(self, opcode, order):
         self.opcode = opcode
         self.order = order
@@ -188,7 +219,6 @@ def type_check(obj, *args):
     cnt = 0
     for i in arguments:
         for type in i.get_arg_type():
-            print(type)
             if type in args[cnt]:
                 if (re.match(r"int", type)):
                     if not((re.match(r"^((?:(\+|\-){0,1}0$)|(?:(\+|\-){0,1}[1-9][0-9]*$))$", i.get_value()))):
@@ -224,6 +254,356 @@ def type_check(obj, *args):
                 exit(53)
 
 
+#################################################################
+
+#################################################################
+# Pridani argumentu k instrukci
+def add_arg(child, obj):
+    for subelem in child:
+        obj.add_arguments(subelem.tag, subelem.attrib.values(), subelem.text)
+
+#################################################################
+# Funkce pro ziskani o jaky frame se jedna, nebo None pokud to neni frame
+def get_frame(frame):
+    if re.match(r"^GF@", frame):
+        return "GF"
+    if re.match(r"^LF@", frame):
+        return "LF"
+    if re.match(r"^TF@", frame):
+        return "TF"
+    else:
+        return None
+#################################################################
+
+
+#################################################################
+# Provedeni instrukce MOVE
+def instr_move(arg1, arg2, global_frame, local_frame, temp_frame):
+    # Pokud kopirujeme z jineho ramce
+    frame_to = arg1.get_value()
+    frame_from = arg2.get_value()
+    frame_to_name = get_frame(arg1.get_value())
+    frame_from_name = get_frame(arg2.get_value())
+
+    if frame_from_name == "GF":
+        if frame_to_name == "GF":
+            global_frame[frame_to[3:]] = global_frame[frame_from[3:]]
+        if frame_to_name == "LF":
+            local_frame.copy_LF(frame_to[3:], global_frame[frame_from[3:]])
+        if frame_to_name == "TF":
+            temp_frame[frame_to[3:]] = global_frame[frame_from[3:]]
+
+    elif frame_from_name == "LF":
+        if frame_to_name == "GF":
+            global_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
+        if frame_to_name == "LF":
+            local_frame.copy_LF(frame_to[3:], local_frame.get_item(frame_from[3:]))
+        if frame_to_name == "TF":
+            temp_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
+
+    elif frame_from_name == "TF":
+        if frame_to_name == "GF":
+            global_frame[frame_to[3:]] = temp_frame[frame_from[3:]]
+        if frame_to_name == "LF":
+            local_frame.copy_LF(frame_to[3:], temp_frame[frame_from[3:]])
+
+    else:
+        if frame_to_name == "GF":
+            global_frame[frame_to[3:]] = list(arg2.get_arg_type())[0], frame_from
+        if frame_to_name == "LF":
+            local_frame.copy_LF(frame_to[3:], list(arg2.get_arg_type())[0], frame_from)
+        if frame_to_name == "TF":
+            temp_frame[frame_to[3:]] = list(arg2.get_arg_type())[0], frame_from
+#################################################################
+
+
+
+#################################################################
+# Definovani promenne v ramci
+def def_frame(frame, global_frame, local_frame, temp_frame):
+    if re.match(r"^TF@", frame[:3]):
+        if temp_frame is not None:
+            if frame[3:] in temp_frame:
+                sys.stderr.write("ERROR: Variable is already defined.\n")
+                exit(52)
+            else:
+                temp_frame[frame[3:]] = None, None
+        else:
+            sys.stderr.write("ERROR: Frame doesn't exists.\n")
+            exit(55)
+
+    if re.match(r"^LF@", frame[:3]):
+        if not local_frame.get_LF():
+            local_frame.create_LF_dict()
+        local_frame.def_LF(frame[3:])
+    if re.match(r"^GF@", frame[:3]):
+        if frame[3:] in global_frame:
+            sys.stderr.write("ERROR: Variable is already defined.\n")
+            exit(52)
+        else:
+            global_frame[frame[3:]] = None, None
+#################################################################
+
+#################################################################
+# Vypise na stdout
+def write(obj, global_frame, local_frame, temp_frame):
+    value = obj.get_args()[0].get_value()
+    if("var" in obj.get_args()[0].get_arg_type()):
+        frame = get_frame(value)
+        if frame == "GF":
+            if global_frame[value[3:]][1] is None:
+                print("", end='')
+            else:
+                print(global_frame[value[3:]][1], end='')
+        elif frame == "LF":
+            print(local_frame.get_item(value[3:]), end='')
+        elif frame == "TF":
+            if temp_frame is not None:
+                print(temp_frame[value[3:]][1], end='')
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+    elif("bool" in obj.get_args()[0].get_arg_type()):
+        print(value, end='')
+    elif("nil" in obj.get_args()[0].get_arg_type()):
+        print('', end='')
+    else:
+        print(value, end='')
+#################################################################
+
+#################################################################
+def arithmetic_operation(obj, global_frame, local_frame, temp_frame):
+    values = []
+    first_frame = get_frame(obj.get_args()[1].get_value())
+    first_operand = obj.get_args()[1].get_value()
+    second_frame = get_frame(obj.get_args()[2].get_value())
+    second_operand = obj.get_args()[2].get_value()
+
+    if first_frame is None:
+        values.append(first_operand)
+    else:
+        if first_frame == "GF":
+            if global_frame[first_operand[3:]][0] == "int":
+                values.append(global_frame[first_operand[3:]][1])
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif first_frame == "LF":
+            if local_frame[first_operand[3:]][0] == "int":
+                values.append(local_frame.get_item(first_operand[3:]))
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif first_frame == "TF":
+            if temp_frame is not None:
+                if temp_frame[first_operand[3:]][0] == "int":
+                    values.append(temp_frame[first_operand[3:]][1])
+                else:
+                    sys.stderr.write("ERROR: Invalid type of argument.\n")
+                    exit(53)
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+
+    if second_frame is None:
+        values.append(second_operand)
+    else:
+        if second_frame == "GF":
+            if global_frame[second_operand[3:]][0] == "int":
+                values.append(global_frame[second_operand[3:]][1])
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif second_frame == "LF":
+            if local_frame[second_operand[3:]][0] == "int":
+                values.append(local_frame.get_item(second_operand[3:]))
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif second_frame == "TF":
+            if temp_frame is not None:
+                if temp_frame[second_operand[3:]][0] == "int":
+                    values.append(temp_frame[second_operand[3:]][1])
+                else:
+                    sys.stderr.write("ERROR: Invalid type of argument.\n")
+                    exit(53)
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+
+    # Pretypuji ciselne stringy na int
+    return [int(string) for string in values]
+
+#################################################################
+
+#################################################################
+def check_same_type(obj, global_frame, local_frame, temp_frame):
+    values = []
+    first_frame = get_frame(obj.get_args()[1].get_value())
+    first_operand_list = list(obj.get_args()[1].get_arg_type())
+    first_operand = first_operand_list[0]
+    first_type = None
+
+    if first_frame is None:
+        first_type = first_operand
+        values.append(obj.get_args()[1].get_value())
+    else:
+        if first_frame == "GF":
+            first_type = type(global_frame[first_operand])
+            values.append(global_frame[first_operand])
+        elif first_frame == "LF":
+            first_type = type(local_frame.get_item(first_operand))
+            values.append(local_frame.get_item(first_operand))
+        elif first_frame == "TF":
+            if temp_frame is not None:
+                first_type = type(temp_frame[first_operand])
+                values.append(temp_frame[first_operand])
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+
+    second_frame = get_frame(obj.get_args()[2].get_value())
+    second_operand_list = list(obj.get_args()[2].get_arg_type())
+    second_operand = second_operand_list[0]
+    second_type = None
+
+    if second_frame is None:
+        second_type = second_operand
+        values.append(obj.get_args()[2].get_value())
+    else:
+        if second_frame == "GF":
+            second_type = type(global_frame[second_operand])
+            values.append(global_frame[second_operand])
+        elif second_frame == "LF":
+            second_type = type(local_frame.get_item(second_operand))
+            values.append(local_frame.get_item(second_operand))
+        elif second_frame == "TF":
+            if temp_frame is not None:
+                second_type = type(temp_frame[second_operand])
+                values.append(temp_frame[second_operand])
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+    if first_type == second_type:
+        return values
+    else:
+        sys.stderr.write("ERROR: Different types of operands.\n")
+        exit(53)
+#################################################################
+def get_type(obj, global_frame, local_frame, temp_frame):
+    values = []
+    frame = get_frame(obj.get_args()[1].get_value())
+    var = obj.get_args()[1].get_value()
+    operand_list = list(obj.get_args()[1].get_arg_type())
+    operand = operand_list[0]
+
+    if frame is None:
+        values.append(operand)
+    else:
+        if frame == "GF":
+            values.append(global_frame[var[3:]][0])
+        elif frame == "LF":
+            values.append(local_frame.get_type(var[3:]))
+        elif frame == "TF":
+            if temp_frame is not None:
+                values.append(temp_frame[var[3:]][0])
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+    return values
+#################################################################
+
+#################################################################
+def is_bool(value):
+    return re.match(r"^(true|false)$", str(value))
+
+#################################################################
+def logical_operation(obj, global_frame, local_frame, temp_frame):
+    values = []
+    first_frame = get_frame(obj.get_args()[1].get_value())
+    first_operand = obj.get_args()[1].get_value()
+
+    if not(obj.get_opcode() == "NOT"):
+        second_frame = get_frame(obj.get_args()[2].get_value())
+        second_operand = obj.get_args()[2].get_value()
+
+    if first_frame is None:
+        if first_operand == "true":
+            values.append(True)
+        else:
+            values.append(False)
+    else:
+        if first_frame == "GF":
+            if is_bool(global_frame[first_operand[3:]]):
+                if global_frame[first_operand[3:]] == "true":
+                    values.append(True)
+                else:
+                    values.append(False)
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif first_frame == "LF":
+            if is_bool(local_frame[first_operand[3:]]):
+                if local_frame.get_item(first_operand[3:]) == "true":
+                    values.append(True)
+                else:
+                    values.append(False)
+            else:
+                sys.stderr.write("ERROR: Invalid type of argument.\n")
+                exit(53)
+        elif first_frame == "TF":
+            if temp_frame is not None:
+                if is_bool(temp_frame[first_operand[3:]]):
+                    if temp_frame[first_operand[3:]] == "true":
+                        values.append(True)
+                    else:
+                        values.append(False)
+                else:
+                    sys.stderr.write("ERROR: Invalid type of argument.\n")
+                    exit(53)
+            else:
+                sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                exit(55)
+
+    if not(obj.get_opcode() == "NOT"):
+        if second_frame is None:
+            if second_operand == "true":
+                values.append(True)
+            else:
+                values.append(False)
+        else:
+            if second_frame == "GF":
+                if is_bool(global_frame[second_operand[3:]]):
+                    if global_frame[second_operand[3:]] == "true":
+                        values.append(True)
+                    else:
+                        values.append(False)
+                else:
+                    sys.stderr.write("ERROR: Invalid type of argument.\n")
+                    exit(53)
+            elif second_frame == "LF":
+                if is_bool(local_frame[second_operand[3:]]):
+                    if local_frame.get_item(second_operand[3:]) == "true":
+                        values.append(True)
+                    else:
+                        values.append(False)
+                else:
+                    sys.stderr.write("ERROR: Invalid type of argument.\n")
+                    exit(53)
+            elif second_frame == "TF":
+                if temp_frame is not None:
+                    if is_bool(temp_frame[second_operand[3:]]):
+                        if temp_frame[second_operand[3:]] == "true":
+                            values.append(True)
+                        else:
+                            values.append(False)
+                    else:
+                        sys.stderr.write("ERROR: Invalid type of argument.\n")
+                        exit(53)
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
+    return values
 #################################################################
 
 
@@ -287,95 +667,6 @@ def tree_check(root):
 #################################################################
 
 #################################################################
-# Pridani argumentu k instrukci
-def add_arg(child, obj):
-    for subelem in child:
-        obj.add_arguments(subelem.tag, subelem.attrib.values(), subelem.text)
-#################################################################
-
-#################################################################
-# Zjisteni o jaky ramec se jedna
-def move_to_frame(frame_to, frame_from, global_frame, local_frame, temp_frame):
-    # Pokud kopirujeme z jineho ramce
-    if re.match(r"^(TF|LF|GF)@", frame_from[:3]):
-        # Kopirujeme z docasneho ramce -> existuje jen jeden, takze nemuzeme kopirovat do nej
-        if re.match(r"^TF@", frame_from[:3]):
-            if re.match(r"^LF@", frame_to[:3]):
-                local_frame.push_LF(frame_to[3:], temp_frame[frame_from[3:]])
-            if re.match(r"^GF@", frame_to[:3]):
-                global_frame[frame_to[3:]] = temp_frame[frame_from[3:]]
-            else:
-                return None
-        # Kopirujeme z lokalniho ramce
-        if re.match(r"^LF@", frame_from[:3]):
-            if re.match(r"^TF@", frame_to[:3]):
-                temp_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
-            if re.match(r"^LF@", frame_to[:3]):
-                local_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
-            if re.match(r"^GF@", frame_to[:3]):
-                global_frame[frame_to[3:]] = local_frame.get_item(frame_from[3:])
-            else:
-                return None
-        # Kopirujeme z globalniho ramce
-        if re.match(r"^GF@", frame_from[:3]):
-            if re.match(r"^TF@", frame_to[:3]):
-                temp_frame[frame_to[3:]] = global_frame[frame_from[3:]]
-            if re.match(r"^LF@", frame_to[:3]):
-                local_frame[frame_to[3:]] = global_frame[frame_from[3:]]
-            if re.match(r"^GF@", frame_to[:3]):
-                global_frame[frame_to[3:]] = global_frame[frame_from[3:]]
-            else:
-                return None
-    # Pokud kopirujeme jen hodnotu
-    else:
-        if re.match(r"^TF@", frame_to[:3]):
-            #if var1 in temp_frame:
-            temp_frame[frame_to[3:]] = frame_from
-            #else:
-             #   sys.stderr.write("ERROR: Variable doesn't exists.\n")
-              #  exit(54)
-        if re.match(r"^LF@", frame_to[:3]):
-            local_frame.push_LF(frame_to[3:], frame_from)
-            #local_frame[frame_to[3:]] = frame_from
-        if re.match(r"^GF@", frame_to[:3]):
-            global_frame[frame_to[3:]] = frame_from
-        else:
-            return None
-#################################################################
-
-#################################################################
-# Definovani promenne v ramci
-def def_frame(frame, global_frame, local_frame, temp_frame):
-    if re.match(r"^TF@", frame[:3]):
-        if temp_frame is not None:
-            if frame[3:] in temp_frame:
-                sys.stderr.write("ERROR: Variable is already defined.\n")
-                exit(52)
-            else:
-                temp_frame[frame[3:]] = None
-        else:
-            sys.stderr.write("ERROR: Frame doesn't exists.\n")
-            exit(55)
-
-    if re.match(r"^LF@", frame[:3]):
-        if local_frame is not None:
-            if local_frame[frame[3:]]:
-                sys.stderr.write("ERROR: Variable is already defined.\n")
-                exit(52)
-            else:
-                local_frame[frame[3:]] = None
-        else:
-            sys.stderr.write("ERROR: Frame doesn't exists.\n")
-            exit(55)
-    if re.match(r"^GF@", frame[:3]):
-        if frame[3:] in global_frame:
-            sys.stderr.write("ERROR: Variable is already defined.\n")
-            exit(52)
-        else:
-            global_frame[frame[3:]] = None
-#################################################################
-
-#################################################################
 # Nacteni z XML souboru, kdy se nejdriv i zavola funkce pro kontrolu
 def tree_load(global_frame, local_frame, temp_frame):
     instruction_list = []
@@ -400,8 +691,9 @@ def tree_load(global_frame, local_frame, temp_frame):
         # Prvni pozice je order, na druhe je opcode
         if 'MOVE' == instruction.get_opcode():
             instruction.check_num_args(2)
+            instruction.check_valid_num_args(2)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
-            move_to_frame(instruction.get_args()[0].get_value(), instruction.get_args()[1].get_value(), global_frame, local_frame, temp_frame)
+            instr_move(instruction.get_args()[0], instruction.get_args()[1], global_frame, local_frame, temp_frame)
             continue
 
         if 'CREATEFRAME' == instruction.get_opcode():
@@ -418,26 +710,34 @@ def tree_load(global_frame, local_frame, temp_frame):
                 exit(55)
             # Pokud neni temporary frame prazdny, tak ho vloz na stack
             if temp_frame != {}:
-                local_frame.push_LF(list(temp_frame.keys())[0], list(temp_frame.values())[0])
-                temp_frame = None
+                local_frame.create_LF_dict()
+                if list(temp_frame.values())[0] is None:
+                    local_frame.push_new_LF(list(temp_frame.keys())[0], None, None)
+                    temp_frame = None
+                else:
+                    local_frame.push_new_LF(list(temp_frame.keys())[0], list(temp_frame.values())[0][0], list(temp_frame.values())[0][1])
+                    temp_frame = None
+            else:
+                sys.stderr.write("ERROR: Empty temporary frame.\n")
+                exit(55)
             continue
 
         if 'POPFRAME' == instruction.get_opcode():
             instruction.check_num_args(0)
-            # Pri pop mi vznikne list
-            temp = list(local_frame.pop_LF())
-            # Priradim do temporary frame
-            temp_frame[temp[0]] = temp[1]
+            # Vlozim frame do temporary framu
+            temp_frame = local_frame.pop_LF()
             continue
 
         if 'DEFVAR' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, "var")
             def_frame(instruction.get_args()[0].get_value(), global_frame, local_frame, temp_frame)
             continue
 
         if 'CALL' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, "label")
             continue
 
@@ -448,136 +748,332 @@ def tree_load(global_frame, local_frame, temp_frame):
 
         if 'PUSHS' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'POPS' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, "var")
             continue
 
         if 'ADD' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "var"], ["int", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = arithmetic_operation(instruction, global_frame, local_frame, temp_frame)
+            result = values[0] + values[1]
+            if frame == "GF":
+                global_frame[var[3:]] = "int", result
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "int", result)
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "int", result
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'SUB' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "var"], ["int", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = arithmetic_operation(instruction, global_frame, local_frame, temp_frame)
+            result = values[0] - values[1]
+            if frame == "GF":
+                global_frame[var[3:]] = "int", result
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "int", result)
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "int", result
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'MUL' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "var"], ["int", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = arithmetic_operation(instruction, global_frame, local_frame, temp_frame)
+            result = values[0] * values[1]
+            if frame == "GF":
+                global_frame[var[3:]] = "int", result
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "int", result)
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "int", result
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'IDIV' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "var"], ["int", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = arithmetic_operation(instruction, global_frame, local_frame, temp_frame)
+            if values[1] == 0:
+                sys.stderr.write("ERROR: Can't divide by 0.\n")
+                exit(57)
+            # Diky // bude vysledek zase int
+            result = values[0] // values[1]
+            if frame == "GF":
+                global_frame[var[3:]] = "int", result
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "int", result)
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "int", result
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'LT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "string", "bool", "var"], ["int", "string", "bool", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = check_same_type(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = "bool", values[0] < values[1]
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "bool", values[0] < values[1])
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "bool", values[0] < values[1]
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'GT' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["int", "string", "bool", "var"], ["int", "string", "bool", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = check_same_type(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = "bool", values[0] > values[1]
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "bool", values[0] > values[1])
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "bool", values[0] > values[1]
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'AND' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(3)
+            type_check(instruction, "var", ["bool", "var"], ["bool", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = logical_operation(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = "bool", values[0] and values[1]
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "bool", values[0] and values[1])
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "bool", values[0] and values[1]
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'OR' == instruction.get_opcode():
             instruction.check_num_args(3)
-            type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(2)
+            type_check(instruction, "var", ["bool", "var"], ["bool", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = logical_operation(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = "bool", values[0] or values[1]
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "bool", values[0] or values[1])
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "bool", values[0] or values[1]
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'NOT' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction, ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
+            instruction.check_valid_num_args(2)
+            type_check(instruction, "var", ["bool", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = logical_operation(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = "bool", not(values[0])
+            if frame == "LF":
+                local_frame.push_LF(var[3:], "bool", not(values[0]))
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = "bool", not(values[0])
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'INT2CHAR' == instruction.get_opcode():
             instruction.check_num_args(2)
+            instruction.check_valid_num_args(2)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'STRI2INT' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'READ' == instruction.get_opcode():
             instruction.check_num_args(2)
-            type_check(instruction, "var", ["int", "string", "bool"])
+            instruction.check_valid_num_args(2)
+            type_check(instruction, "var", "type")
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            read_value = input()
+            type = instruction.get_args()[1].get_value()
+
+            if type == "bool":
+                if re.match(r"true", read_value, flags=re.IGNORECASE):
+                    read_value = "true"
+                else:
+                    read_value = "false"
+
+            if not read_value:
+                read_value = "nil"
+                type = "nil"
+
+            if frame == "GF":
+                global_frame[var[3:]] = type, read_value
+            if frame == "LF":
+                local_frame.push_LF(var[3:], type, read_value)
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = type, read_value
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'WRITE' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, ["int", "string", "bool", "nil", "var"])
+            write(instruction, global_frame, local_frame, temp_frame)
             continue
 
         if 'CONCAT' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'STRLEN' == instruction.get_opcode():
             instruction.check_num_args(2)
+            instruction.check_valid_num_args(2)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'GETCHAR' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'SETCHAR' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'TYPE' == instruction.get_opcode():
             instruction.check_num_args(2)
+            instruction.check_valid_num_args(2)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"])
+            var = instruction.get_args()[0].get_value()
+            frame = get_frame(instruction.get_args()[0].get_value())
+            values = get_type(instruction, global_frame, local_frame, temp_frame)
+            if frame == "GF":
+                global_frame[var[3:]] = values[0], values[0]
+            if frame == "LF":
+                local_frame.push_LF(var[3:], values[0], values[0])
+            if frame == "TF":
+                if temp_frame is not None:
+                    temp_frame[var[3:]] = values[0], values[0]
+                else:
+                    sys.stderr.write("ERROR: Frame doesn't exists.\n")
+                    exit(55)
             continue
 
         if 'LABEL' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, "label")
             continue
 
         if 'JUMPIFNEQ' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "label", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'JUMPIFEQ' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "label", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'EQ' == instruction.get_opcode():
             instruction.check_num_args(3)
+            instruction.check_valid_num_args(3)
             type_check(instruction, "var", ["int", "string", "bool", "nil", "var"], ["int", "string", "bool", "nil", "var"])
             continue
 
         if 'JUMP' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, "label")
             continue
 
         if 'EXIT' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, ["int", "string", "bool", "nil", "var"])
+            if 0 <= int(instruction.get_args()[0].get_value()) <= 49:
+                exit(int(instruction.get_args()[0].get_value()))
+            else:
+                sys.stderr.write("ERROR: Invalid exit code.\n")
+                exit(57)
             continue
 
         if 'DPRINT' == instruction.get_opcode():
             instruction.check_num_args(1)
+            instruction.check_valid_num_args(1)
             type_check(instruction, ["int", "string", "bool", "nil", "var"])
             continue
 
